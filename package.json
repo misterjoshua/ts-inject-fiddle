@@ -6,7 +6,8 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "generate": "ts-node --esm v1/main.ts"
+    "v1": "ts-node --esm v1/main.ts",
+    "v2": "ts-node --esm v2/main.ts"
   },
   "dependencies": {
     "ts-morph": "^18.0.0",
