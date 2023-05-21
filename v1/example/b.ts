@@ -1,4 +1,4 @@
-import { getClassifier as aliasedGetClassifier, Classifier, Tag, falseGetClassifier } from "./Classifier";
+import { getClassifier as aliasedGetClassifier, Classifier, Tag, falseGetClassifier } from "./Classifier.js";
 
 export class Foo1 {
   static [aliasedGetClassifier](): Classifier {

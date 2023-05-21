@@ -4,8 +4,9 @@
   "main": "index.js",
   "author": "Josh Kellendonk <joshkellendonk@gmail.com>",
   "license": "MIT",
+  "type": "module",
   "scripts": {
-    "generate": "ts-node main.ts"
+    "generate": "ts-node --esm v1/main.ts"
   },
   "dependencies": {
     "ts-morph": "^18.0.0",
