@@ -5,5 +5,5 @@ import url from 'url';
 
 test('asdf', () => {
   const basePath = path.dirname(url.fileURLToPath(import.meta.url));
-  doThing(basePath);
+  doThing([path.join(basePath, 'example', 'various-components.ts')]);
 });
