@@ -11,17 +11,22 @@ type ClassDeclarationDependencyPrototype<T extends string, N extends tsm.Node> =
   node: N,
 };
 
-type ClassDeclarationDependency =
+export type DependencyInfo =
   | ClassDeclarationDependencyPrototype<'class', tsm.ClassDeclaration>
   | ClassDeclarationDependencyPrototype<'interface', tsm.InterfaceDeclaration>;
+
+export type FactoryInfo = {
+  method: tsm.MethodDeclaration;
+  returnType: tsm.ClassDeclaration | tsm.InterfaceDeclaration;
+}
 
 export interface ClassDeclarationInfo {
   class: tsm.ClassDeclaration;
   name?: string;
   order: number;
   qualifiers: string[];
-  constructorDependencies: Record<string, ClassDeclarationDependency>;
-  factories: tsm.MethodDeclaration[];
+  constructorDependencies: Record<string, DependencyInfo>;
+  factories: FactoryInfo[];
   inherits: tsm.ClassDeclaration[];
   implements: tsm.InterfaceDeclaration[];
 }
@@ -125,27 +130,8 @@ export function getComponents(...globs: string[]): Components {
     const [constructor] = currentClass.getConstructors();
     if (constructor) {
       for (const parameter of constructor.getParameters()) {
-        const identifier = parameter.getFirstChildByKindOrThrow(tsm.SyntaxKind.Identifier);
-        const typeReference = parameter.getFirstChildByKindOrThrow(tsm.SyntaxKind.TypeReference);
-        const typeIdentifier = typeReference.getFirstChildByKindOrThrow(tsm.SyntaxKind.Identifier);
-        const [typeDefinition] = typeIdentifier.getDefinitionNodes();
-        if (!typeDefinition) throw new Error('Could not find type definition for ' + typeIdentifier.getText());
-
-        if (typeDefinition.isKind(tsm.SyntaxKind.InterfaceDeclaration)) {
-          graphNode.constructorDependencies[identifier.getText()] = {
-            type: 'interface',
-            node: typeDefinition,
-          };
-        } else if (typeDefinition.isKind(tsm.SyntaxKind.ClassDeclaration)) {
-          graphNode.constructorDependencies[identifier.getText()] = {
-            type: 'class',
-            node: typeDefinition,
-          };
-        } else {
-          throw new Error('Unknown type definition kind: ' + typeDefinition.getKindName());
-        }
-
-        continue;
+        const { dependency, dependencyName } = describeParameterDependency(parameter);
+        graphNode.constructorDependencies[dependencyName] = dependency;
       }
     }
 
@@ -153,7 +139,7 @@ export function getComponents(...globs: string[]): Components {
     for (const method of currentClass.getMethods()) {
       const methodDecorators = method.getDecorators();
       if (methodDecorators.some((d) => d.getFirstDescendantByKindOrThrow(tsm.SyntaxKind.Identifier).getDefinitionNodes().includes(factoryStereotype))) {
-        graphNode.factories.push(method);
+        graphNode.factories.push(describeFactory(method));
       }
     }
 
@@ -181,6 +167,50 @@ export function getComponents(...globs: string[]): Components {
   }
 }
 
+function describeParameterDependency(parameter: tsm.ParameterDeclaration): {
+  dependency: DependencyInfo,
+  dependencyName: string
+} {
+  const identifier = parameter.getFirstChildByKindOrThrow(tsm.SyntaxKind.Identifier);
+  const typeReference = parameter.getFirstChildByKindOrThrow(tsm.SyntaxKind.TypeReference);
+  const typeIdentifier = typeReference.getFirstChildByKindOrThrow(tsm.SyntaxKind.Identifier);
+  const [typeDefinition] = typeIdentifier.getDefinitionNodes();
+  if (!typeDefinition) throw new Error('Could not find type definition for ' + typeIdentifier.getText());
+
+  const dependencyName = identifier.getText();
+
+  if (typeDefinition.isKind(tsm.SyntaxKind.InterfaceDeclaration)) {
+    return {
+      dependencyName,
+      dependency: {
+        type: 'interface',
+        node: typeDefinition,
+      },
+    };
+  } else if (typeDefinition.isKind(tsm.SyntaxKind.ClassDeclaration)) {
+    return {
+      dependencyName,
+      dependency: {
+        type: 'class',
+        node: typeDefinition,
+      },
+    };
+  }
+
+  throw new Error('Unknown type definition kind: ' + typeDefinition.getKindName());
+}
+
+function describeFactory(method: tsm.MethodDeclaration): FactoryInfo {
+  const returnType = method.getReturnTypeNodeOrThrow().getFirstChildByKindOrThrow(tsm.SyntaxKind.Identifier).getDefinitionNodes()[0];
+  if (!returnType.isKind(tsm.SyntaxKind.InterfaceDeclaration) && !returnType.isKind(tsm.SyntaxKind.ClassDeclaration)) {
+    throw new Error('Unsupported return type definition kind: ' + returnType.getKindName());
+  }
+
+  return {
+    method,
+    returnType,
+  };
+}
 
 export function summarize(components: Components) {
   // Output a summary of the component declaration map:
@@ -191,7 +221,7 @@ export function summarize(components: Components) {
     console.log(`    Name: ${info.name ?? '<<none>>'}`);
     console.log(`    Order: ${info.order}`);
     console.log(`    Qualifiers: ${info.qualifiers.length > 0 ? info.qualifiers.join(', ') : '<<none>>'}`);
-    console.log(`    Factories: ${info.factories.length > 0 ? info.factories.map(f => f.getName()).join(', ') : '<<none>>'}`);
+    console.log(`    Factories: ${info.factories.length > 0 ? info.factories.map(f => f.method.getName()).join(', ') : '<<none>>'}`);
     console.log(
       `    Inherits: ${info.inherits.length > 0 ? info.inherits.map((c) => c.getName()).join(', ') : '<<none>>'}`,
     );
