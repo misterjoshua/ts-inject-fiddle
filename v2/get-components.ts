@@ -2,17 +2,21 @@ import tsm from 'ts-morph';
 import path from 'path';
 import url from 'url';
 
-type ClassDeclarationInfo = {
-  name?: string;
-  order: number;
-  tags: string[];
-  inherits: tsm.ClassDeclaration[];
-  implements: tsm.InterfaceDeclaration[];
-};
-
 const API_PATH = path.join(path.dirname(url.fileURLToPath(import.meta.url)), 'di.ts');
 
-export function doThing(globs: string[]): void {
+export type Components = ClassDeclarationInfo[];
+
+export interface ClassDeclarationInfo {
+  class: tsm.ClassDeclaration;
+  name?: string;
+  order: number;
+  qualifiers: string[];
+  factories: tsm.MethodDeclaration[];
+  inherits: tsm.ClassDeclaration[];
+  implements: tsm.InterfaceDeclaration[];
+}
+
+export function getComponents(...globs: string[]): Components {
   const project = new tsm.Project();
 
   project.addSourceFilesAtPaths(API_PATH);
@@ -25,15 +29,16 @@ export function doThing(globs: string[]): void {
   }
 
   // Create a map of class declaration information.
-  const componentDeclarationMap = new Map<
-    tsm.ClassDeclaration,
+  const components = new Array<
     ClassDeclarationInfo
   >();
 
-  for (const clazz of findStereotypeReferences(getStereotype(apiFile, 'Component'))) {
+  for (const clazz of findStereotypeReferences(getStereotype('Component'))) {
     const graphNode: ClassDeclarationInfo = {
+      class: clazz,
       order: 0,
-      tags: [],
+      qualifiers: [],
+      factories: [],
       inherits: [],
       implements: [],
     };
@@ -44,43 +49,15 @@ export function doThing(globs: string[]): void {
       currentClass = currentClass.getBaseClass();
     }
 
-    componentDeclarationMap.set(clazz, graphNode);
+    components.push(graphNode);
   }
 
-// Output a summary of the component declaration map:
-  console.log('Component declaration map:');
-
-  for (const [clazz, info] of componentDeclarationMap) {
-    console.log(`  ${clazz.getName()}:`);
-    console.log(`    Name: ${info.name ?? '<<none>>'}`);
-    console.log(`    Order: ${info.order}`);
-    console.log(`    Tags: ${info.tags.length > 0 ? info.tags.join(', ') : '<<none>>'}`);
-    console.log(
-      `    Inherits: ${info.inherits.length > 0 ? info.inherits.map((c) => c.getName()).join(', ') : '<<none>>'}`,
-    );
-    console.log(
-      `    Implements: ${info.implements.length > 0 ? info.implements.map((c) => c.getName()).join(', ') : '<<none>>'}`,
-    );
-  }
-
-// TODO: For every component, find now we can construct them.
-
-
-// const outPath = path.join(basePath, "generated.ts");
-// const outputSourceFile = project.createSourceFile(outPath, "", {
-//   overwrite: true,
-// });
-
-// outputSourceFile.formatText();
-// outputSourceFile.saveSync();
-
-/// Helper functions follow
+  return components;
 
   function getStereotype(
-    source: tsm.SourceFile,
     name: string,
   ): tsm.FunctionDeclaration {
-    const [exported] = source.getExportedDeclarations().get(name)!;
+    const [exported] = apiFile.getExportedDeclarations().get(name)!;
     return exported.asKind(tsm.SyntaxKind.FunctionDeclaration)!;
   }
 
@@ -104,9 +81,10 @@ export function doThing(globs: string[]): void {
     currentClass: tsm.ClassDeclaration,
     graphNode: ClassDeclarationInfo,
   ) {
-    const orderStereotype = getStereotype(apiFile, 'Order');
-    const tagStereotype = getStereotype(apiFile, 'Tag');
-    const nameStereotype = getStereotype(apiFile, 'Name');
+    const orderStereotype = getStereotype('Order');
+    const qualifierStereotype = getStereotype('Qualifier');
+    const nameStereotype = getStereotype('Name');
+    const factoryStereotype = getStereotype('Factory');
 
     for (const heritageClause of currentClass.getHeritageClauses() ?? []) {
       if (heritageClause.getToken() == tsm.SyntaxKind.ExtendsKeyword) {
@@ -132,6 +110,14 @@ export function doThing(globs: string[]): void {
       }
     }
 
+    // Collect factory methods
+    for (const method of currentClass.getMethods()) {
+      const methodDecorators = method.getDecorators();
+      if (methodDecorators.some((d) => d.getFirstDescendantByKindOrThrow(tsm.SyntaxKind.Identifier).getDefinitionNodes().includes(factoryStereotype))) {
+        graphNode.factories.push(method);
+      }
+    }
+
     // Track metadata decorators
     for (const decorator of currentClass.getChildrenOfKind(
       tsm.SyntaxKind.Decorator,
@@ -145,13 +131,33 @@ export function doThing(globs: string[]): void {
 
       if (decoratorDefinition == orderStereotype) {
         graphNode.order = decoratorArguments[0].asKindOrThrow(tsm.SyntaxKind.NumericLiteral).getLiteralValue();
-      } else if (decoratorDefinition == tagStereotype) {
-        graphNode.tags.push(decoratorArguments[0].asKindOrThrow(tsm.SyntaxKind.StringLiteral).getLiteralValue());
+      } else if (decoratorDefinition == qualifierStereotype) {
+        graphNode.qualifiers.push(decoratorArguments[0].asKindOrThrow(tsm.SyntaxKind.StringLiteral).getLiteralValue());
       } else if (decoratorDefinition == nameStereotype) {
         graphNode.name = decoratorArguments[0].asKindOrThrow(tsm.SyntaxKind.StringLiteral).getLiteralValue();
       } else {
         // ... other stereotypes
       }
     }
+  }
+}
+
+
+export function summarize(components: Components) {
+  // Output a summary of the component declaration map:
+  console.log('Component declaration map:');
+
+  for (const info of components) {
+    console.log(`  ${info.class.getName()}:`);
+    console.log(`    Name: ${info.name ?? '<<none>>'}`);
+    console.log(`    Order: ${info.order}`);
+    console.log(`    Qualifiers: ${info.qualifiers.length > 0 ? info.qualifiers.join(', ') : '<<none>>'}`);
+    console.log(`    Factories: ${info.factories.length > 0 ? info.factories.map(f => f.getName()).join(', ') : '<<none>>'}`);
+    console.log(
+      `    Inherits: ${info.inherits.length > 0 ? info.inherits.map((c) => c.getName()).join(', ') : '<<none>>'}`,
+    );
+    console.log(
+      `    Implements: ${info.implements.length > 0 ? info.implements.map((c) => c.getName()).join(', ') : '<<none>>'}`,
+    );
   }
 }

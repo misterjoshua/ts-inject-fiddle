@@ -1,4 +1,4 @@
-import { Component, Injectable, Order, Tag } from '../di.js';
+import { Component, Inject, Order, Qualifier } from '../di.js';
 
 export interface FooIntf1 {
   foo1(): void;
@@ -26,8 +26,8 @@ export class FooBase2 extends FooBase1 implements FooBase2Intf {
 
 @Component
 @Order(1)
-@Tag('foo')
-@Tag('bar')
+@Qualifier('foo')
+@Qualifier('bar')
 export class Foo1 extends FooBase2 implements FooIntf1, FooIntf2 {
   foo1() {
     console.log('foo');
@@ -40,7 +40,7 @@ export class Foo1 extends FooBase2 implements FooIntf1, FooIntf2 {
 
 @Component
 export class Foo2 {
-  constructor(private foo1: Injectable<Foo1[]>) {
+  constructor(private foo1: Inject<Foo1[]>) {
   }
 }
 
