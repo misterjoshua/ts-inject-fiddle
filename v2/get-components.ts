@@ -2,13 +2,19 @@ import tsm from 'ts-morph';
 import path from 'path';
 import url from 'url';
 
-const API_PATH = path.join(path.dirname(url.fileURLToPath(import.meta.url)), 'di.ts');
+const API_PATH = path.join(
+  path.dirname(url.fileURLToPath(import.meta.url)),
+  'di.ts',
+);
 
 export type Components = ClassDeclarationInfo[];
 
-type ClassDeclarationDependencyPrototype<T extends string, N extends tsm.Node> = {
-  type: T,
-  node: N,
+type ClassDeclarationDependencyPrototype<
+  T extends string,
+  N extends tsm.Node,
+> = {
+  type: T;
+  node: N;
 };
 
 export type DependencyInfo =
@@ -18,7 +24,7 @@ export type DependencyInfo =
 export type FactoryInfo = {
   method: tsm.MethodDeclaration;
   returnType: tsm.ClassDeclaration | tsm.InterfaceDeclaration;
-}
+};
 
 export interface ClassDeclarationInfo {
   class: tsm.ClassDeclaration;
@@ -35,18 +41,14 @@ export function getComponents(...globs: string[]): Components {
   const project = new tsm.Project();
 
   project.addSourceFilesAtPaths(API_PATH);
-  const apiFile = project.getSourceFile(
-    API_PATH,
-  )!;
+  const apiFile = project.getSourceFile(API_PATH)!;
 
   for (const glob of globs) {
     project.addSourceFilesAtPaths(glob);
   }
 
   // Create a map of class declaration information.
-  const components = new Array<
-    ClassDeclarationInfo
-  >();
+  const components = new Array<ClassDeclarationInfo>();
 
   for (const clazz of findStereotypeReferences(getStereotype('Component'))) {
     const graphNode: ClassDeclarationInfo = {
@@ -70,9 +72,7 @@ export function getComponents(...globs: string[]): Components {
 
   return components;
 
-  function getStereotype(
-    name: string,
-  ): tsm.FunctionDeclaration {
+  function getStereotype(name: string): tsm.FunctionDeclaration {
     const [exported] = apiFile.getExportedDeclarations().get(name)!;
     return exported.asKind(tsm.SyntaxKind.FunctionDeclaration)!;
   }
@@ -113,7 +113,9 @@ export function getComponents(...globs: string[]): Components {
             graphNode.inherits.push(definition);
           }
         }
-      } else if (heritageClause.getToken() == tsm.SyntaxKind.ImplementsKeyword) {
+      } else if (
+        heritageClause.getToken() == tsm.SyntaxKind.ImplementsKeyword
+      ) {
         // Implemented interfaces
         for (const heritageIdentifier of heritageClause.getDescendantsOfKind(
           tsm.SyntaxKind.Identifier,
@@ -130,7 +132,8 @@ export function getComponents(...globs: string[]): Components {
     const [constructor] = currentClass.getConstructors();
     if (constructor) {
       for (const parameter of constructor.getParameters()) {
-        const { dependency, dependencyName } = describeParameterDependency(parameter);
+        const { dependency, dependencyName } =
+          describeParameterDependency(parameter);
         graphNode.constructorDependencies[dependencyName] = dependency;
       }
     }
@@ -138,7 +141,14 @@ export function getComponents(...globs: string[]): Components {
     // Collect factory methods
     for (const method of currentClass.getMethods()) {
       const methodDecorators = method.getDecorators();
-      if (methodDecorators.some((d) => d.getFirstDescendantByKindOrThrow(tsm.SyntaxKind.Identifier).getDefinitionNodes().includes(factoryStereotype))) {
+      if (
+        methodDecorators.some((d) =>
+          d
+            .getFirstDescendantByKindOrThrow(tsm.SyntaxKind.Identifier)
+            .getDefinitionNodes()
+            .includes(factoryStereotype),
+        )
+      ) {
         graphNode.factories.push(describeFactory(method));
       }
     }
@@ -155,11 +165,19 @@ export function getComponents(...globs: string[]): Components {
       const decoratorArguments = decorator.getArguments();
 
       if (decoratorDefinition == orderStereotype) {
-        graphNode.order = decoratorArguments[0].asKindOrThrow(tsm.SyntaxKind.NumericLiteral).getLiteralValue();
+        graphNode.order = decoratorArguments[0]
+          .asKindOrThrow(tsm.SyntaxKind.NumericLiteral)
+          .getLiteralValue();
       } else if (decoratorDefinition == qualifierStereotype) {
-        graphNode.qualifiers.push(decoratorArguments[0].asKindOrThrow(tsm.SyntaxKind.StringLiteral).getLiteralValue());
+        graphNode.qualifiers.push(
+          decoratorArguments[0]
+            .asKindOrThrow(tsm.SyntaxKind.StringLiteral)
+            .getLiteralValue(),
+        );
       } else if (decoratorDefinition == nameStereotype) {
-        graphNode.name = decoratorArguments[0].asKindOrThrow(tsm.SyntaxKind.StringLiteral).getLiteralValue();
+        graphNode.name = decoratorArguments[0]
+          .asKindOrThrow(tsm.SyntaxKind.StringLiteral)
+          .getLiteralValue();
       } else {
         // ... other stereotypes
       }
@@ -168,14 +186,23 @@ export function getComponents(...globs: string[]): Components {
 }
 
 function describeParameterDependency(parameter: tsm.ParameterDeclaration): {
-  dependency: DependencyInfo,
-  dependencyName: string
+  dependency: DependencyInfo;
+  dependencyName: string;
 } {
-  const identifier = parameter.getFirstChildByKindOrThrow(tsm.SyntaxKind.Identifier);
-  const typeReference = parameter.getFirstChildByKindOrThrow(tsm.SyntaxKind.TypeReference);
-  const typeIdentifier = typeReference.getFirstChildByKindOrThrow(tsm.SyntaxKind.Identifier);
+  const identifier = parameter.getFirstChildByKindOrThrow(
+    tsm.SyntaxKind.Identifier,
+  );
+  const typeReference = parameter.getFirstChildByKindOrThrow(
+    tsm.SyntaxKind.TypeReference,
+  );
+  const typeIdentifier = typeReference.getFirstChildByKindOrThrow(
+    tsm.SyntaxKind.Identifier,
+  );
   const [typeDefinition] = typeIdentifier.getDefinitionNodes();
-  if (!typeDefinition) throw new Error('Could not find type definition for ' + typeIdentifier.getText());
+  if (!typeDefinition)
+    throw new Error(
+      'Could not find type definition for ' + typeIdentifier.getText(),
+    );
 
   const dependencyName = identifier.getText();
 
@@ -197,13 +224,23 @@ function describeParameterDependency(parameter: tsm.ParameterDeclaration): {
     };
   }
 
-  throw new Error('Unknown type definition kind: ' + typeDefinition.getKindName());
+  throw new Error(
+    'Unknown type definition kind: ' + typeDefinition.getKindName(),
+  );
 }
 
 function describeFactory(method: tsm.MethodDeclaration): FactoryInfo {
-  const returnType = method.getReturnTypeNodeOrThrow().getFirstChildByKindOrThrow(tsm.SyntaxKind.Identifier).getDefinitionNodes()[0];
-  if (!returnType.isKind(tsm.SyntaxKind.InterfaceDeclaration) && !returnType.isKind(tsm.SyntaxKind.ClassDeclaration)) {
-    throw new Error('Unsupported return type definition kind: ' + returnType.getKindName());
+  const returnType = method
+    .getReturnTypeNodeOrThrow()
+    .getFirstChildByKindOrThrow(tsm.SyntaxKind.Identifier)
+    .getDefinitionNodes()[0];
+  if (
+    !returnType.isKind(tsm.SyntaxKind.InterfaceDeclaration) &&
+    !returnType.isKind(tsm.SyntaxKind.ClassDeclaration)
+  ) {
+    throw new Error(
+      'Unsupported return type definition kind: ' + returnType.getKindName(),
+    );
   }
 
   return {
@@ -220,13 +257,31 @@ export function summarize(components: Components) {
     console.log(`  ${info.class.getName()}:`);
     console.log(`    Name: ${info.name ?? '<<none>>'}`);
     console.log(`    Order: ${info.order}`);
-    console.log(`    Qualifiers: ${info.qualifiers.length > 0 ? info.qualifiers.join(', ') : '<<none>>'}`);
-    console.log(`    Factories: ${info.factories.length > 0 ? info.factories.map(f => f.method.getName()).join(', ') : '<<none>>'}`);
     console.log(
-      `    Inherits: ${info.inherits.length > 0 ? info.inherits.map((c) => c.getName()).join(', ') : '<<none>>'}`,
+      `    Qualifiers: ${
+        info.qualifiers.length > 0 ? info.qualifiers.join(', ') : '<<none>>'
+      }`,
     );
     console.log(
-      `    Implements: ${info.implements.length > 0 ? info.implements.map((c) => c.getName()).join(', ') : '<<none>>'}`,
+      `    Factories: ${
+        info.factories.length > 0
+          ? info.factories.map((f) => f.method.getName()).join(', ')
+          : '<<none>>'
+      }`,
+    );
+    console.log(
+      `    Inherits: ${
+        info.inherits.length > 0
+          ? info.inherits.map((c) => c.getName()).join(', ')
+          : '<<none>>'
+      }`,
+    );
+    console.log(
+      `    Implements: ${
+        info.implements.length > 0
+          ? info.implements.map((c) => c.getName()).join(', ')
+          : '<<none>>'
+      }`,
     );
   }
 }

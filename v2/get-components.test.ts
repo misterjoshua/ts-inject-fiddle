@@ -12,24 +12,24 @@ describe('simple', () => {
   summarize(components);
 
   test('has a named component', () => {
-    expect(components.some(c => c.name === 'MyComponent')).toEqual(true);
+    expect(components.some((c) => c.name === 'MyComponent')).toEqual(true);
   });
 });
 
 describe('dependency', () => {
-  const components = getComponents(path.join(basePath, 'example/dependency.ts'));
+  const components = getComponents(
+    path.join(basePath, 'example/dependency.ts'),
+  );
   summarize(components);
 
   test('has a named component', () => {
-    expect(components.some(c => c.name === 'MyComponent')).toEqual(true);
+    expect(components.some((c) => c.name === 'MyComponent')).toEqual(true);
   });
 
   test('has two components', () => {
-    expect(components.map(c => c.class.getName()))
-      .toEqual(expect.arrayContaining([
-        'Dependency',
-        'MyComponent',
-      ]));
+    expect(components.map((c) => c.class.getName())).toEqual(
+      expect.arrayContaining(['Dependency', 'MyComponent']),
+    );
   });
 });
 
@@ -38,21 +38,19 @@ describe('factory', () => {
   summarize(components);
 
   test('has a named component', () => {
-    expect(components.some(c => c.name === 'MyComponent')).toEqual(true);
+    expect(components.some((c) => c.name === 'MyComponent')).toEqual(true);
   });
 
   test('has the critical components', () => {
-    expect(components.map(c => c.class.getName()))
-      .toEqual(expect.arrayContaining([
-        'DependencyFactory',
-        'MyComponent',
-      ]));
+    expect(components.map((c) => c.class.getName())).toEqual(
+      expect.arrayContaining(['DependencyFactory', 'MyComponent']),
+    );
   });
 
   test('has the factory', () => {
     const factoryClasses = components
-      .filter(c => c.factories.length > 0)
-      .map(c => c.class.getName());
+      .filter((c) => c.factories.length > 0)
+      .map((c) => c.class.getName());
 
     expect(factoryClasses).toEqual(['DependencyFactory']);
   });

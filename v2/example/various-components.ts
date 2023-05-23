@@ -12,11 +12,9 @@ export interface FooBase2Intf {
   fooBase(): void;
 }
 
-export abstract class FooBaseABC {
-}
+export abstract class FooBaseABC {}
 
-export class FooBase1 extends FooBaseABC {
-}
+export class FooBase1 extends FooBaseABC {}
 
 export class FooBase2 extends FooBase1 implements FooBase2Intf {
   fooBase(): void {
@@ -40,9 +38,7 @@ export class Foo1 extends FooBase2 implements FooIntf1, FooIntf2 {
 
 @Component
 export class Foo2 {
-  constructor(private foo1: Inject<Foo1[]>) {
-  }
+  constructor(private foo1: Inject<Foo1[]>) {}
 }
 
-export class Bad1 {
-}
+export class Bad1 {}

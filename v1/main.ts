@@ -14,10 +14,14 @@ console.log(`Adding source files: ${newLocal}`);
 // Add the example directory to the project
 const sourceFiles = project.addSourceFilesAtPaths(newLocal);
 const getClassifierVariable = findGetClassifierVariable(sourceFiles);
-const getClassifierStaticFunctions = findClassesImplementingStaticVariableFn(getClassifierVariable);
+const getClassifierStaticFunctions = findClassesImplementingStaticVariableFn(
+  getClassifierVariable,
+);
 
 const outPath = path.join(baseDir, 'generated.ts');
-const outputSourceFile = project.createSourceFile(outPath, '', { overwrite: true });
+const outputSourceFile = project.createSourceFile(outPath, '', {
+  overwrite: true,
+});
 
 outputSourceFile.addImportDeclaration({
   namedImports: ['getClassifier'],
@@ -26,42 +30,60 @@ outputSourceFile.addImportDeclaration({
 
 for (const classDeclaration of getClassifierStaticFunctions) {
   // Now create an import for each class and run it
-  const moduleSpecifier = `./${outputSourceFile.getRelativePathTo(classDeclaration.getSourceFile()).replace(/\.ts$/, '.js')}`;
-  const hash = crypto.createHash('sha256').update(moduleSpecifier).digest('hex').slice(0, 6);
+  const moduleSpecifier = `./${outputSourceFile
+    .getRelativePathTo(classDeclaration.getSourceFile())
+    .replace(/\.ts$/, '.js')}`;
+  const hash = crypto
+    .createHash('sha256')
+    .update(moduleSpecifier)
+    .digest('hex')
+    .slice(0, 6);
   const alias = `${classDeclaration.getName()!}_${hash}`;
-  
+
   outputSourceFile.addImportDeclaration({
-    namedImports: [{
-      name: classDeclaration.getName()!,
-      alias,
-    }],
+    namedImports: [
+      {
+        name: classDeclaration.getName()!,
+        alias,
+      },
+    ],
     moduleSpecifier: moduleSpecifier,
   });
 
-  outputSourceFile.addStatements([
-    `console.log(${alias}[getClassifier]());`,
-  ]);
+  outputSourceFile.addStatements([`console.log(${alias}[getClassifier]());`]);
 }
 
 outputSourceFile.formatText();
 outputSourceFile.saveSync();
 console.log(`Generated file: ${outPath}`);
 
-function findClassesImplementingStaticVariableFn(variable: tsm.VariableDeclaration) {
-  return variable.findReferencesAsNodes().flatMap(ref => {
-    const memberFunctionDeclaration = ref.getFirstAncestorByKind(tsm.SyntaxKind.MethodDeclaration);
-    const staticKeyword = memberFunctionDeclaration?.getFirstDescendantByKind(tsm.SyntaxKind.StaticKeyword);
-    const classDeclaration = staticKeyword?.getFirstAncestorByKind(tsm.SyntaxKind.ClassDeclaration);
+function findClassesImplementingStaticVariableFn(
+  variable: tsm.VariableDeclaration,
+) {
+  return variable.findReferencesAsNodes().flatMap((ref) => {
+    const memberFunctionDeclaration = ref.getFirstAncestorByKind(
+      tsm.SyntaxKind.MethodDeclaration,
+    );
+    const staticKeyword = memberFunctionDeclaration?.getFirstDescendantByKind(
+      tsm.SyntaxKind.StaticKeyword,
+    );
+    const classDeclaration = staticKeyword?.getFirstAncestorByKind(
+      tsm.SyntaxKind.ClassDeclaration,
+    );
     return classDeclaration ? [classDeclaration] : [];
   });
 }
 
-function findGetClassifierVariable(sourceFiles: tsm.SourceFile[]): tsm.VariableDeclaration {
+function findGetClassifierVariable(
+  sourceFiles: tsm.SourceFile[],
+): tsm.VariableDeclaration {
   for (const sourceFile of sourceFiles) {
     if (sourceFile.getBaseName() !== 'Classifier.ts') continue;
     const exported = sourceFile.getExportedDeclarations();
     const [getClassifierExport] = exported.get('getClassifier') ?? [];
-    const asKind = getClassifierExport.asKind(tsm.SyntaxKind.VariableDeclaration);
+    const asKind = getClassifierExport.asKind(
+      tsm.SyntaxKind.VariableDeclaration,
+    );
     if (!asKind) continue;
     return asKind;
   }

@@ -9,7 +9,10 @@ export interface Collectable {
 export class Collector {
   constructor(collectables: Inject<Collectable[]>) {
     console.log('Collector.constructor collectables=', collectables);
-    console.log('parts=', collectables.map(collectable => collectable.messagePart()).join(' '));
+    console.log(
+      'parts=',
+      collectables.map((collectable) => collectable.messagePart()).join(' '),
+    );
   }
 }
 

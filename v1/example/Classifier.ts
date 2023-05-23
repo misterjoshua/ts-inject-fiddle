@@ -3,25 +3,25 @@ export interface Classifier {
 }
 
 export class None implements Classifier {
-  readonly type = "none";
+  readonly type = 'none';
 }
 
 export class Tag implements Classifier {
-  readonly type = "tag";
+  readonly type = 'tag';
   constructor(public readonly tag: string) {}
 }
 
 export class Order implements Classifier {
-  readonly type = "order";
+  readonly type = 'order';
   constructor(public readonly order: number) {}
 }
 
 export class Combined implements Classifier {
-  readonly type = "combined";
+  readonly type = 'combined';
   constructor(public readonly classifiers: Classifier[]) {}
 }
 
-export const getClassifier = Symbol("injectable");
+export const getClassifier = Symbol('injectable');
 
 export const falseGetClassifier = Symbol('bad');
 
