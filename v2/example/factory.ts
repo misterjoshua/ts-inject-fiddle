@@ -3,7 +3,7 @@ import { Component, Factory, Inject, Name } from '../di.js';
 @Component
 @Name('MyComponent')
 export class MyComponent {
-  constructor(public readonly dependency: Inject<Dependency>) {
+  constructor(public readonly dependency: Dependency) {
     console.log('MyComponent.constructor dependency.value=', dependency.value);
   }
 }

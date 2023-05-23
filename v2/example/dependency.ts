@@ -1,9 +1,9 @@
-import { Component, Inject, Name } from '../di.js';
+import { Component, Name } from '../di.js';
 
 @Component
 @Name('MyComponent')
 export class MyComponent {
-  constructor(public readonly dependency: Inject<Dependency>) {
+  constructor(public readonly dependency: Dependency) {
   }
 }
 

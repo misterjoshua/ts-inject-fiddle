@@ -3,6 +3,8 @@ import { getComponents, summarize } from './get-components.js';
 import path from 'path';
 import url from 'url';
 
+// https://ts-ast-viewer.com/
+
 const basePath = path.dirname(url.fileURLToPath(import.meta.url));
 
 describe('simple', () => {
@@ -10,7 +12,7 @@ describe('simple', () => {
   summarize(components);
 
   test('has a named component', () => {
-    expect(components.some(c => c.name === 'MyComponent')).toBe(true);
+    expect(components.some(c => c.name === 'MyComponent')).toEqual(true);
   });
 });
 
@@ -19,7 +21,7 @@ describe('dependency', () => {
   summarize(components);
 
   test('has a named component', () => {
-    expect(components.some(c => c.name === 'MyComponent')).toBe(true);
+    expect(components.some(c => c.name === 'MyComponent')).toEqual(true);
   });
 
   test('has two components', () => {
@@ -36,7 +38,7 @@ describe('factory', () => {
   summarize(components);
 
   test('has a named component', () => {
-    expect(components.some(c => c.name === 'MyComponent')).toBe(true);
+    expect(components.some(c => c.name === 'MyComponent')).toEqual(true);
   });
 
   test('has the critical components', () => {

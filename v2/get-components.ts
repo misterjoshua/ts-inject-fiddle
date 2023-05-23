@@ -6,11 +6,21 @@ const API_PATH = path.join(path.dirname(url.fileURLToPath(import.meta.url)), 'di
 
 export type Components = ClassDeclarationInfo[];
 
+type ClassDeclarationDependencyPrototype<T extends string, N extends tsm.Node> = {
+  type: T,
+  node: N,
+};
+
+type ClassDeclarationDependency =
+  | ClassDeclarationDependencyPrototype<'class', tsm.ClassDeclaration>
+  | ClassDeclarationDependencyPrototype<'interface', tsm.InterfaceDeclaration>;
+
 export interface ClassDeclarationInfo {
   class: tsm.ClassDeclaration;
   name?: string;
   order: number;
   qualifiers: string[];
+  constructorDependencies: Record<string, ClassDeclarationDependency>;
   factories: tsm.MethodDeclaration[];
   inherits: tsm.ClassDeclaration[];
   implements: tsm.InterfaceDeclaration[];
@@ -38,6 +48,7 @@ export function getComponents(...globs: string[]): Components {
       class: clazz,
       order: 0,
       qualifiers: [],
+      constructorDependencies: {},
       factories: [],
       inherits: [],
       implements: [],
@@ -107,6 +118,34 @@ export function getComponents(...globs: string[]): Components {
             graphNode.implements.push(definition);
           }
         }
+      }
+    }
+
+    // Collect dependencies
+    const [constructor] = currentClass.getConstructors();
+    if (constructor) {
+      for (const parameter of constructor.getParameters()) {
+        const identifier = parameter.getFirstChildByKindOrThrow(tsm.SyntaxKind.Identifier);
+        const typeReference = parameter.getFirstChildByKindOrThrow(tsm.SyntaxKind.TypeReference);
+        const typeIdentifier = typeReference.getFirstChildByKindOrThrow(tsm.SyntaxKind.Identifier);
+        const [typeDefinition] = typeIdentifier.getDefinitionNodes();
+        if (!typeDefinition) throw new Error('Could not find type definition for ' + typeIdentifier.getText());
+
+        if (typeDefinition.isKind(tsm.SyntaxKind.InterfaceDeclaration)) {
+          graphNode.constructorDependencies[identifier.getText()] = {
+            type: 'interface',
+            node: typeDefinition,
+          };
+        } else if (typeDefinition.isKind(tsm.SyntaxKind.ClassDeclaration)) {
+          graphNode.constructorDependencies[identifier.getText()] = {
+            type: 'class',
+            node: typeDefinition,
+          };
+        } else {
+          throw new Error('Unknown type definition kind: ' + typeDefinition.getKindName());
+        }
+
+        continue;
       }
     }
 
